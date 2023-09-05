@@ -111,9 +111,11 @@ propagation = boyenkoller
 # In the SIAM example we don't do parameter inference, only latent states
 θinit = θtrue
 
+Πroot = [0.95, 0.05, 0.0]
+
 # Initialise the forward model and guiding terms
 Ginit = SIR(θinit)
-msinit, loghinit = backwardfiltering(Ginit, propagation, false, obs)
+msinit, loghinit = backwardfiltering(Ginit, propagation, false, obs, Πroot)
 
 # Initialise the first guided sample
 Zinit = rand(Float64, dims)
