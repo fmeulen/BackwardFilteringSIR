@@ -123,10 +123,7 @@ heatmap(Sinit)
 heatmap(Strue)
 
 ################
-θ = θinit
 
-G = SIR(θ)
-ms, logh = backwardfiltering(G, propagation, false, obs)
 
 # Interesting to look at the h-transform
 id = 20
@@ -144,6 +141,7 @@ plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L
 
 
 # Update Z for each segment of 50 time steps individually
+tinterval = 50
 blocks = (T-1)÷tinterval
 
 # Initialise MCMC parameters
