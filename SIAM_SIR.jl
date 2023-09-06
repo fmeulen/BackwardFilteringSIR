@@ -1,5 +1,7 @@
 @__DIR__
 
+
+
 using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distributions, LaTeXStrings, Unzip, Printf
 include("FactoredFiltering.jl")
 
@@ -153,26 +155,27 @@ Zs = [(Z[22,11], Z[5,4])]  # just some Zs to monitor mixing
 
 BI = 1_00
 ITER = 3_00
-
-for i = 1:ITER
-    # Z step only
-    for k = 1:blocks
-        qZ′ = copy(qZ)
-        ind = (k-1)*tinterval+1:k*tinterval+1
+let
+    global qZ, S, w, ACCZ, Z, Savg
+    for i = 1:ITER
+        # Z step only
+        for k = 1:blocks
+                qZ′ = copy(qZ)
+            ind = (k-1)*tinterval+1:k*tinterval+1
         qW = randn(Float64, (N, length(ind)))
         qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
 
-        Z′ = cdf.(Normal(), qZ′)
-        S′, w′ = forwardguiding(G, ms, obs, Z′, logh)
+            Z′ = cdf.(Normal(), qZ′)
+            S′, w′ = forwardguiding(G, ms, obs, Z′, logh)
 
-        A = S′ == S # check if prev image S is identical to new image S′
+            A = S′ == S # check if prev image S is identical to new image S′
 
-        if log(rand()) < w′ - w
-            qZ = qZ′
-            Z = Z′
-            S, w = S′, w′
-            ACCZ += 1
-        end
+            if log(rand()) < w′ - w
+                qZ = qZ′
+                Z = Z′
+                S, w = S′, w′
+                ACCZ += 1
+            end
 
         push!(ws, w)
         push!(Zs,  (Z[22,11], Z[5,4]))
@@ -182,11 +185,11 @@ for i = 1:ITER
         end
     end
 
-    if (i % 2_500 == 0)
-        push!(Ss, S)
+        if (i % 2_500 == 0)
+            push!(Ss, S)
+        end
     end
 end
-
 
 # Plots
 sz = (500,600)
