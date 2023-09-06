@@ -84,7 +84,7 @@ if false # original implementation
     # In this case the observation 'parents' are trivial, as we simply observe singular individuals
     obsparents = Dict((i,t) => (i,t) for i=iobserved, t=tobserved)
 else 
-    obsparents = Dict((c[1],c[2])=>(c[1],c[2]) for c in sample(CartesianIndices((N,T)), 500, replace=false))
+    obsparents = Dict((c[1],c[2])=>(c[1],c[2]) for c in sample(CartesianIndices((N,T)), 300, replace=false))
 end
 
 # The emissions process / matrix. Many different options
@@ -108,14 +108,13 @@ propagation = boyenkoller
 Πroot = [0.9, 0.05, 0.05]
 
 # Backward filter
-ms, logh = backwardfiltering(G, propagation, false, obs, Πroot)
+ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
 
 # Initialise the first guided sample
 Zinit = rand(Float64, dims)
 Sinit, winit = forwardguiding(G, ms, obs, Zinit, logh)
 
-heatmap(Sinit)
-heatmap(Strue)
+plot(heatmap(Sinit, title="initial"), heatmap(Strue, title="true"))
 
 ################
 

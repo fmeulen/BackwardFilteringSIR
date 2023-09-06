@@ -88,14 +88,18 @@ function backwardfiltering(FMC::FactorisedMarkovChain{T}, kernel::Function, appr
         messages[t] = Message(htransforms[t], approximatepullback)
     end
         
+    logh = 0.0   # only relevant if θ is updated
     for (key, value) in htransforms[2]
-            a = htransforms[2][key] .* Πroot        
-            htransforms[1][key] = a/sum(a)
+        #a = htransforms[2][key] .* Πroot        
+        a = dot(htransforms[2][key],  Πroot)
+        htransforms[1][key] = [a]
+        logh += log(a)
     end
      
     messages[1] = Message(htransforms[1] , htransforms[2])
 
-    logh = (x0) -> sum(log(htransforms[1][i][x0[i]]) for i=1:FMC.N) # should not be FMC.root but x0
+#    logh = sum(log.(first.(htransforms[1]))) 
+#    logh = (x0) -> sum(log(htransforms[1][i][x0[i]]) for i=1:FMC.N) # should not be FMC.root but x0
 #    logh = sum(log(htransforms[1][i][FMC.root[i]]) for i=1:FMC.N) # should not be FMC.root but x0
     messages, logh
 end
@@ -136,12 +140,13 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     # Furthermore, the weight should be computed
 
      for i in 1:FMC.N
-         p = Πroot .* messages[1].factoredhtransform[i]
+         p = Πroot .* messages[1].approximatepullback[i]
          samples[i,1] = discretesample(p, sum(p)*Z[i,1])
-         weight = dot(p, messages[1].factoredhtransform[i]) #/ Πroot # to be adjusted
-         logweight += log(weight)
+        #  weight = dot(p, messages[1].factoredhtransform[i]) #/ Πroot # to be adjusted
+        #  logweight += log(weight)
      end
     
+     
 
     #     inplacemultiplication!(p, messages[1].factoredhtransform[i])
     #     samples[i,t] = discretesample(p, sum(p)*Z[i,t])
@@ -188,7 +193,7 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     end
     logweight += log(weightT)
 
-    logweight += logh(samples[:,1])  ## correct?
-   samples, logweight
+#    logweight += logh(samples[:,1])  ## correct?
+    samples, logweight
 #    samples, logh + logweight
 end
