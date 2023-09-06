@@ -56,40 +56,41 @@ statespace = Dict(i => E for i in 1:N)
 parents = Dict(i => intersect(i-2:i+2, 1:N) for i in 1:N)
 root = vcat(fill(_I_, Iinitial), fill(_S_, N-Iinitial))
 
-#Πroot =[fill(0.95,N),  fill(0.05,N)  fill(0.05, N)]
 
-# Iinitial = 5
-# root = vcat(fill(_I_, Iinitial), fill(_S_, N-2*Iinitial), fill(_I_, Iinitial))
+
+ Iinitial = 5
+ root = vcat(fill(_I_, Iinitial), fill(_S_, N-2*Iinitial), fill(_I_, Iinitial))
 
 # Parametric description of the entire forward model
 SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, dims)
 
 # Instantiation with the true dynamics
 #θtrue = [2.5, 0.6, 0.1]
-θtrue = [1.2, 0.6, 0.03]
-G = SIR(θtrue)
+θ = [1.2, 0.6, 0.03]
+G = SIR(θ)
 
 # The true forward realisation
-Random.seed!(640)
 Random.seed!(42)
 Ztrue = rand(Float64, dims)
 Strue = samplefrom(G, Ztrue)
 heatmap(Strue)
 
-# Observation interval and observed time steps
-tinterval = 50
-tobserved = tinterval+1:tinterval:T
+## specify the observations 
+if false # original implementation
+    # Observation interval and observed time steps
+    tinterval = 50
+    tobserved = tinterval+1:tinterval:T
 
-# Individual interval and observed individuals
-iinterval = 3
-iobserved = 1:iinterval:N
+    # Individual interval and observed individuals
+    iinterval = 3
+    iobserved = 1:iinterval:N
 
-# Map Y observation indices to X realisation indices
-# In this case the observation 'parents' are trivial, as we simply observe singular individuals
-obsparents = Dict((i,t) => (i,t) for i=iobserved, t=tobserved)
-
-obsparents = Dict((c[1],c[2])=>(c[1],c[2]) for c in sample(CartesianIndices((N,T)), 500, replace=false))
-
+    # Map Y observation indices to X realisation indices
+    # In this case the observation 'parents' are trivial, as we simply observe singular individuals
+    obsparents = Dict((i,t) => (i,t) for i=iobserved, t=tobserved)
+else 
+    obsparents = Dict((c[1],c[2])=>(c[1],c[2]) for c in sample(CartesianIndices((N,T)), 500, replace=false))
+end
 
 # The emissions process / matrix. Many different options
 O = Matrix(1.0*LinearAlgebra.I, 3, 3)
@@ -108,18 +109,15 @@ include("BoyenKollerFiltering.jl")
 propagation = boyenkoller
 #proof()
 
-# In the SIAM example we don't do parameter inference, only latent states
-θinit = θtrue
-
+# prior on the initial state of each individual
 Πroot = [0.95, 0.05, 0.0]
 
-# Initialise the forward model and guiding terms
-Ginit = SIR(θinit)
-msinit, loghinit = backwardfiltering(Ginit, propagation, false, obs, Πroot)
+# Backward filter
+ms, logh = backwardfiltering(G, propagation, false, obs, Πroot)
 
 # Initialise the first guided sample
 Zinit = rand(Float64, dims)
-Sinit, winit = forwardguiding(Ginit, msinit, obs, Zinit, loghinit)
+Sinit, winit = forwardguiding(G, ms, obs, Zinit, logh)
 
 heatmap(Sinit)
 heatmap(Strue)

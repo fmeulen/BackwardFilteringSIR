@@ -136,9 +136,9 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     # Furthermore, the weight should be computed
 
      for i in 1:FMC.N
-         p = Πroot[i] * messages[1].factoredhtransform[i]
-         samples[i,1] = discretesample(p, sum(p)*Z[1,t])
-         weight = dot(p, messages[1].factoredhtransform[i]) / Πroot[i] # to be adjusted
+         p = Πroot .* messages[1].factoredhtransform[i]
+         samples[i,1] = discretesample(p, sum(p)*Z[i,1])
+         weight = dot(p, messages[1].factoredhtransform[i]) #/ Πroot # to be adjusted
          logweight += log(weight)
      end
     
@@ -189,6 +189,6 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     logweight += log(weightT)
 
     logweight += logh(samples[:,1]) 
-#   samples, logweight
+   samples, logweight
 #    samples, logh + logweight
 end
