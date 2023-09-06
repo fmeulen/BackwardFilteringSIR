@@ -188,7 +188,7 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     end
     logweight += log(weightT)
 
-    logweight += logh(samples[:,1]) 
+    logweight += logh(samples[:,1])  ## correct?
    samples, logweight
 #    samples, logh + logweight
 end

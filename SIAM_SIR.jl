@@ -50,22 +50,17 @@ typeToSupport = Dict(["1" => (E, E, E), "2" => (E, E, E, E), "Inner" => (E, E, E
 # Parametric description of the problem dymamics
 dynamics(θ) = cpds(nodeToType, typeToP, typeToSupport, θ)
 
-# Define the initial state / root
-Iinitial = 1
+# Define the true initial state / root
+Iinitial = 3
 statespace = Dict(i => E for i in 1:N)
 parents = Dict(i => intersect(i-2:i+2, 1:N) for i in 1:N)
 root = vcat(fill(_I_, Iinitial), fill(_S_, N-Iinitial))
 
 
-
- Iinitial = 5
- root = vcat(fill(_I_, Iinitial), fill(_S_, N-2*Iinitial), fill(_I_, Iinitial))
-
 # Parametric description of the entire forward model
 SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, dims)
 
 # Instantiation with the true dynamics
-#θtrue = [2.5, 0.6, 0.1]
 θ = [1.2, 0.6, 0.03]
 G = SIR(θ)
 
@@ -110,7 +105,7 @@ propagation = boyenkoller
 #proof()
 
 # prior on the initial state of each individual
-Πroot = [0.95, 0.05, 0.0]
+Πroot = [0.9, 0.05, 0.05]
 
 # Backward filter
 ms, logh = backwardfiltering(G, propagation, false, obs, Πroot)
@@ -141,7 +136,7 @@ plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L
 
 
 # Update Z for each segment of 50 time steps individually
-tinterval = 50
+tinterval = 10
 blocks = (T-1)÷tinterval
 
 # Initialise MCMC parameters
@@ -151,22 +146,22 @@ qZ = quantile.(Normal(), Z)
 Savg = zeros(dims)
 ws = [w]
 
-ρ = 0.999
+ρ = 0.99
 ACCZ = 0
 
 Ss = [S]
 Zs = [(Z[22,11], Z[5,4])]  # just some Zs to monitor mixing
 
 BI = 1_00
-ITER = 2_00
+ITER = 3_00
 
 for i = 1:ITER
     # Z step only
     for k = 1:blocks
-        qW = randn(Float64, (N, tinterval))
-
         qZ′ = copy(qZ)
-        qZ′[:,(k-1)*tinterval+2:k*tinterval+1] = ρ*qZ′[:,(k-1)*tinterval+2:k*tinterval+1] + √(1 - ρ^2)*qW
+        ind = (k-1)*tinterval+1:k*tinterval+1
+        qW = randn(Float64, (N, length(ind)))
+        qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
 
         Z′ = cdf.(Normal(), qZ′)
         S′, w′ = forwardguiding(G, ms, obs, Z′, logh)
@@ -183,7 +178,7 @@ for i = 1:ITER
         push!(ws, w)
         push!(Zs,  (Z[22,11], Z[5,4]))
         if i > BI  Savg += S end 
-        if (i % 1 == 0)
+        if (i % 5 == 0)
             @printf("iteration: %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, ACCZ/((i-1)*blocks + (k-1) + 1), w, A)
         end
     end
