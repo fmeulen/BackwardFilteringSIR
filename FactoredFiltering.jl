@@ -91,7 +91,7 @@ function backwardfiltering(FMC::FactorisedMarkovChain{T}, kernel::Function, appr
     logh = 0.0   # only relevant if θ is updated
     for (key, value) in htransforms[2]
         #a = htransforms[2][key] .* Πroot        
-        a = dot(htransforms[2][key],  Πroot)
+        a = dot(htransforms[2][key],  Πroot[key])
         htransforms[1][key] = [a]
         logh += log(a)
     end
@@ -140,7 +140,7 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     # Furthermore, the weight should be computed
 
      for i in 1:FMC.N
-         p = Πroot .* messages[1].approximatepullback[i]
+         p = Πroot[i] .* messages[1].approximatepullback[i]
          samples[i,1] = discretesample(p, sum(p)*Z[i,1])
         #  weight = dot(p, messages[1].factoredhtransform[i]) #/ Πroot # to be adjusted
         #  logweight += log(weight)

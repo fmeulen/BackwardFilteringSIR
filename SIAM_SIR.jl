@@ -109,6 +109,12 @@ propagation = boyenkoller
 # prior on the initial state of each individual
 Πroot = [0.9, 0.05, 0.05]
 
+# prior on the initial state of each individual
+Πroot1 = [0.9, 0.05, 0.05]
+Πroot2 = [1.0, 0.0, 0.0]
+Πroot =  merge(Dict(i => Πroot1 for i in 1:N÷2), Dict(i => Πroot2 for i in N÷2:N))
+
+
 # Backward filter
 ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
 
@@ -153,8 +159,8 @@ ACCZ = 0
 Ss = [S]
 Zs = [(Z[22,11], Z[5,4])]  # just some Zs to monitor mixing
 
-BI = 1_00
-ITER = 3_00
+BI = 1000
+ITER = 3000
 let
     global qZ, S, w, ACCZ, Z, Savg
     for i = 1:ITER
@@ -208,6 +214,8 @@ pinit
 # construct observation ColorPalette
 defaultpalette = palette(cgrad(:default, categorical=true), 3)
 white = RGBA{Float64}(255, 255, 255)
+white = RGBA{Float64}(16, 59, 223, 0.12)
+white = RGBA(52, 162, 231, 0.23)
 
 observationcolors = vec(hcat(white, defaultpalette.colors.colors...))
 observationpalette = ColorPalette(typeof(defaultpalette.colors)(observationcolors, "", ""))
@@ -219,12 +227,15 @@ for ((i,t), state) in obsstates
     Yobs[max(i-1,1):i, max(t-3,1):t] .= state
 end
 
-pobs = heatmap(Yobs, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, color=observationpalette, yrotation=90, dps=600, title="observed")
+pobs = heatmap(Yobs, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, 
+color=observationpalette, yrotation=90, dps=600, title="observed", background_color_subplot=white)
 
 
-lo = @layout [a; b; c; d; e]
-pall_pobs = plot(pobs, pinit, plast, ptrue, pavg, layout=lo, size=(800,1600))
+lo = @layout [a b; c d]
+pall_pobs = plot(pinit, plast, ptrue, pavg, layout=lo)#, size=(800,1600))
 
 
-
-savefig(pall_pobs,  "out_mcmc.png")
+lo2 = @layout [a;b]
+pforward = plot(pobs, ptrue, layout=lo2)
+savefig(pforward, "true_and_observed.png")
+savefig(pall_pobs,  "true_and_outmcmc.png")
