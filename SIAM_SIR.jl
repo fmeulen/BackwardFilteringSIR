@@ -216,7 +216,7 @@ observationpalette = ColorPalette(typeof(defaultpalette.colors)(observationcolor
 Yobs = zero(Strue)
 for ((i,t), state) in obsstates
     #@show (i,t)
-    Yobs[i,max(t-3,1):t] .= state
+    Yobs[max(i-1,1):i, max(t-3,1):t] .= state
 end
 
 pobs = heatmap(Yobs, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, color=observationpalette, yrotation=90, dps=600, title="observed")
