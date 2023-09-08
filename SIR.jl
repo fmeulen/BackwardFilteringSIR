@@ -71,10 +71,8 @@ SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, dims)
 G = SIR(θ)
 
 # forward simulate and extract observations from it
-Ztrue, Strue, obsparents = create_data(Arbitrary(), G, N, T, 300; seednr = 5)
+Ztrue, Strue, obsparents = create_data(Arbitrary(), G, 300; seednr = 15)
     
-
-
 # The emissions process / matrix. Many different options
 O = Matrix(1.0*LinearAlgebra.I, 3, 3)
 #O = [0.98 0.01 0.01; 0.01 0.98 0.01; 0.01 0.01 0.98] # observe with error
@@ -89,10 +87,6 @@ obs = (obsparents, obscpds, obsstates)
 
 # Initialise inference
 propagation = boyenkoller
-
-
-# prior on the initial state of each individual
-Πroot = [0.9, 0.05, 0.05]
 
 # prior on the initial state of each individual
 Πroot1 = [0.9, 0.05, 0.05]
@@ -156,7 +150,7 @@ function mcmc(G, ms, obs, logh; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
             qW = randn(Float64, (N, length(ind)))
             qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
             Z′ = cdf.(Normal(), qZ′)
-            S′, w′ = forwardguiding(G, ms, obs, Z′, logh)
+            S′, w′ = forwardguiding(G, ms, obs, Z′, Πroot)
 
             A = S′ == S # check if prev image S is identical to new image S′
 
@@ -183,7 +177,7 @@ function mcmc(G, ms, obs, logh; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
 end
 
 
-out = mcmc(G, ms, obs, logh;ITER=500)
+out = mcmc(G, ms, obs, logh;ITER=200)
 
 
 
