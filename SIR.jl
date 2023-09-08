@@ -3,6 +3,8 @@
 using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distributions, LaTeXStrings, Unzip, Printf
 include("FactoredFiltering.jl")
 include("create_data.jl")
+include("BoyenKollerFiltering.jl")
+
 
 # Modelling the process dynamics
 @enum State::UInt8 _S_=1 _I_=2 _R_=3
@@ -61,6 +63,9 @@ parents = Dict(i => intersect(i-2:i+2, 1:N) for i in 1:N)
 # Parametric description of the entire forward model
 SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, dims)
 
+
+
+
 # Instantiation with the true dynamics
 θ = [1.2, 0.6, 0.03]
 G = SIR(θ)
@@ -83,9 +88,8 @@ obsstates = Dict((i,t) => sample(weights(obscpds[(i,t)][Strue[i,t],:])) for (i,t
 obs = (obsparents, obscpds, obsstates)
 
 # Initialise inference
-include("BoyenKollerFiltering.jl")
 propagation = boyenkoller
-#proof()
+
 
 # prior on the initial state of each individual
 Πroot = [0.9, 0.05, 0.05]
@@ -98,9 +102,6 @@ propagation = boyenkoller
 
 # Backward filter
 ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
-
-
-
 
 ################
 
@@ -127,13 +128,14 @@ plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L
 
 
 
-function mcmc(G, ms, obs, logh; ITER=100, BI=ITER÷5, ρ=0.99; tinterval=10)
+function mcmc(G, ms, obs, logh; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
+    BI = ITER÷BIfactor
     # takes blocks of size tinterval
     blocks = (G.T-1)÷tinterval
 
     # Initialise the first guided sample
     Zinit = rand(Float64, (G.N, G.T))
-    Sinit, winit = forwardguiding(G, ms, obs, Zinit, logh)
+    Sinit, winit = forwardguiding(G, ms, obs, Zinit, Πroot)
 
     # Initialise MCMC parameters
     Z = copy(Zinit); S = copy(Sinit); w = copy(winit);
@@ -146,14 +148,11 @@ function mcmc(G, ms, obs, logh; ITER=100, BI=ITER÷5, ρ=0.99; tinterval=10)
 
     Ss = [S]
 #    Zs = [(Z[22,11], Z[5,4])]  # just some Zs to monitor mixing
-
-    
-#        global qZ, S, w, ACCZ, Z, Savg
-        for i = 1:ITER
-            # Z step only
-            for k = 1:blocks
-                    qZ′ = copy(qZ)
-                ind = (k-1)*tinterval+1:k*tinterval+1
+    for i = 1:ITER
+        # Z step only
+        for k = 1:blocks
+            qZ′ = copy(qZ)
+            ind = (k-1)*tinterval+1:k*tinterval+1
             qW = randn(Float64, (N, length(ind)))
             qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
             Z′ = cdf.(Normal(), qZ′)
@@ -167,40 +166,33 @@ function mcmc(G, ms, obs, logh; ITER=100, BI=ITER÷5, ρ=0.99; tinterval=10)
                 S, w = S′, w′
                 ACCZ += 1
             end
+            
 
-            push!(ws, w)
- #           push!(Zs,  (Z[22,11], Z[5,4]))
-            if i > BI  Savg += S end 
             if (i % 5 == 0)
                 @printf("iteration: %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, ACCZ/((i-1)*blocks + (k-1) + 1), w, A)
             end
+            push!(ws, w)
         end
+       
+#       push!(Zs,  (Z[22,11], Z[5,4]))
+        if i > BI  Savg += S end 
+        if (i % 500 == 0)    push!(Ss, S)          end
+    end
 
-            if (i % 500 == 0)
-                push!(Ss, S)
-            end
-        end
-    
+    (Sinit=Sinit, Slast=S, Siterates=Ss, Savg=Savg, weights=ws)
 end
 
 
-
+out = mcmc(G, ms, obs, logh;ITER=500)
 
 
 
 # Plots
 sz = (500,600)
-pinit = heatmap(Sinit, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="first iteration", size=sz)
+pinit = heatmap(out.Sinit, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="first iteration", size=sz)
 ptrue = heatmap(Strue, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="true", size=sz)
-plast = heatmap(S, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="last iteration", size=sz)
-pavg = heatmap(Savg, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="average", size=sz)
-
-pall = plot(pinit, ptrue, plast, pavg)
-pall
-#savefig(pall, "recovery_mcmc.png")
-
-@show w
-pinit
+plast = heatmap(out.Slast, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="last iteration", size=sz)
+pavg = heatmap(out.Savg, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="average", size=sz)
 
 # construct observation ColorPalette
 defaultpalette = palette(cgrad(:default, categorical=true), 3)
@@ -214,7 +206,6 @@ observationpalette = ColorPalette(typeof(defaultpalette.colors)(observationcolor
 # width of observations increased for clarity
 Yobs = zero(Strue)
 for ((i,t), state) in obsstates
-    #@show (i,t)
     Yobs[max(i-1,1):i, max(t-3,1):t] .= state
 end
 
@@ -225,12 +216,12 @@ color=observationpalette, yrotation=90, dps=600, title="observed", background_co
 lo = @layout [a b; c d]
 pall_pobs = plot(pinit, plast, ptrue, pavg, layout=lo)#, size=(800,1600))
 
-
 lo2 = @layout [a;b]
 pforward = plot(pobs, ptrue, layout=lo2)
+
+ploglik = plot(out.weights, label="", ylabel="loglikelihood", xlabel="MCMC update step")
+
+
 savefig(pforward, "true_and_observed.png")
 savefig(pall_pobs,  "true_and_outmcmc.png")
-
-ploglik = plot(ws[1:blocks:(blocks*ITER)], label="",
-        ylabel="loglikelihood", xlabel="iteration")
 savefig(ploglik,  "trace_loglik.png")
