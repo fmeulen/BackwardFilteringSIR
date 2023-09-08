@@ -197,3 +197,5 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     samples, logweight
 #    samples, logh + logweight
 end
+
+forwardguiding(FMC, messages, observations, Πroot) = (Z) -> forwardguiding(FMC, messages, observations, Z, Πroot)

@@ -122,14 +122,16 @@ plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L
 
 
 
-function mcmc(G, ms, obs, logh; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
+function mcmc(G, ms, obs; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
     BI = ITER÷BIfactor
     # takes blocks of size tinterval
     blocks = (G.T-1)÷tinterval
 
+    𝒢 = forwardguiding(G, ms, obs, Πroot)
+
     # Initialise the first guided sample
     Zinit = rand(Float64, (G.N, G.T))
-    Sinit, winit = forwardguiding(G, ms, obs, Zinit, Πroot)
+    Sinit, winit = 𝒢(Zinit)
 
     # Initialise MCMC parameters
     Z = copy(Zinit); S = copy(Sinit); w = copy(winit);
@@ -150,7 +152,7 @@ function mcmc(G, ms, obs, logh; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
             qW = randn(Float64, (N, length(ind)))
             qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
             Z′ = cdf.(Normal(), qZ′)
-            S′, w′ = forwardguiding(G, ms, obs, Z′, Πroot)
+            S′, w′ = 𝒢(Z′)
 
             A = S′ == S # check if prev image S is identical to new image S′
 
@@ -177,7 +179,7 @@ function mcmc(G, ms, obs, logh; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
 end
 
 
-out = mcmc(G, ms, obs, logh;ITER=200)
+out = mcmc(G, ms, obs;ITER=200, ρ=0.9 )
 
 
 
