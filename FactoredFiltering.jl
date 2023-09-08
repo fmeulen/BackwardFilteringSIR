@@ -130,7 +130,7 @@ function cpds(nodeToType, typeToP, typeToSupport, θ)
     cpds(nodeToType, typeToP, typeToSupport, [θ])
 end
 
-function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Message{T}}, observations, Z::Matrix, logh) where T
+function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Message{T}}, observations, Z::Matrix, Πroot) where T
     samples = Matrix{UInt8}(undef, FMC.N, FMC.T)
     logweight = 0.
     #samples[:,1] = FMC.root
