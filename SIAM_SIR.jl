@@ -1,9 +1,8 @@
 @__DIR__
 
-
-
 using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distributions, LaTeXStrings, Unzip, Printf
 include("FactoredFiltering.jl")
+include("create_data.jl")
 
 # Modelling the process dynamics
 @enum State::UInt8 _S_=1 _I_=2 _R_=3
@@ -54,10 +53,10 @@ dynamics(θ) = cpds(nodeToType, typeToP, typeToSupport, θ)
 
 # Define the true initial state / root
 Iinitial = 3
-statespace = Dict(i => E for i in 1:N)
-parents = Dict(i => intersect(i-2:i+2, 1:N) for i in 1:N)
 root = vcat(fill(_I_, Iinitial), fill(_S_, N-Iinitial))
 
+statespace = Dict(i => E for i in 1:N)
+parents = Dict(i => intersect(i-2:i+2, 1:N) for i in 1:N)
 
 # Parametric description of the entire forward model
 SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, dims)
@@ -66,28 +65,10 @@ SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, dims)
 θ = [1.2, 0.6, 0.03]
 G = SIR(θ)
 
-# The true forward realisation
-Random.seed!(42)
-Ztrue = rand(Float64, dims)
-Strue = samplefrom(G, Ztrue)
-heatmap(Strue)
+# forward simulate and extract observations from it
+Ztrue, Strue, obsparents = create_data(Arbitrary(), G, N, T, 300; seednr = 5)
+    
 
-## specify the observations 
-if false # original implementation
-    # Observation interval and observed time steps
-    tinterval = 50
-    tobserved = tinterval+1:tinterval:T
-
-    # Individual interval and observed individuals
-    iinterval = 3
-    iobserved = 1:iinterval:N
-
-    # Map Y observation indices to X realisation indices
-    # In this case the observation 'parents' are trivial, as we simply observe singular individuals
-    obsparents = Dict((i,t) => (i,t) for i=iobserved, t=tobserved)
-else 
-    obsparents = Dict((c[1],c[2])=>(c[1],c[2]) for c in sample(CartesianIndices((N,T)), 300, replace=false))
-end
 
 # The emissions process / matrix. Many different options
 O = Matrix(1.0*LinearAlgebra.I, 3, 3)
@@ -118,11 +99,8 @@ propagation = boyenkoller
 # Backward filter
 ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
 
-# Initialise the first guided sample
-Zinit = rand(Float64, dims)
-Sinit, winit = forwardguiding(G, ms, obs, Zinit, logh)
 
-plot(heatmap(Sinit, title="initial"), heatmap(Strue, title="true"))
+
 
 ################
 
@@ -143,34 +121,41 @@ plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L
 
 
 # Update Z for each segment of 50 time steps individually
-tinterval = 10
-blocks = (T-1)÷tinterval
 
-# Initialise MCMC parameters
-Z = copy(Zinit); S = copy(Sinit); w = copy(winit);
-qZ = quantile.(Normal(), Z)
 
-Savg = zeros(dims)
-ws = [w]
 
-ρ = 0.99
-ACCZ = 0
 
-Ss = [S]
-Zs = [(Z[22,11], Z[5,4])]  # just some Zs to monitor mixing
 
-BI = 1000
-ITER = 3000
-let
-    global qZ, S, w, ACCZ, Z, Savg
-    for i = 1:ITER
-        # Z step only
-        for k = 1:blocks
-                qZ′ = copy(qZ)
-            ind = (k-1)*tinterval+1:k*tinterval+1
-        qW = randn(Float64, (N, length(ind)))
-        qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
 
+function mcmc(G, ms, obs, logh; ITER=100, BI=ITER÷5, ρ=0.99; tinterval=10)
+    # takes blocks of size tinterval
+    blocks = (G.T-1)÷tinterval
+
+    # Initialise the first guided sample
+    Zinit = rand(Float64, (G.N, G.T))
+    Sinit, winit = forwardguiding(G, ms, obs, Zinit, logh)
+
+    # Initialise MCMC parameters
+    Z = copy(Zinit); S = copy(Sinit); w = copy(winit);
+    qZ = quantile.(Normal(), Z)
+
+    Savg = zeros(G.N, G.T)
+    ws = [w]
+
+    ACCZ = 0
+
+    Ss = [S]
+#    Zs = [(Z[22,11], Z[5,4])]  # just some Zs to monitor mixing
+
+    
+#        global qZ, S, w, ACCZ, Z, Savg
+        for i = 1:ITER
+            # Z step only
+            for k = 1:blocks
+                    qZ′ = copy(qZ)
+                ind = (k-1)*tinterval+1:k*tinterval+1
+            qW = randn(Float64, (N, length(ind)))
+            qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
             Z′ = cdf.(Normal(), qZ′)
             S′, w′ = forwardguiding(G, ms, obs, Z′, logh)
 
@@ -183,19 +168,25 @@ let
                 ACCZ += 1
             end
 
-        push!(ws, w)
-        push!(Zs,  (Z[22,11], Z[5,4]))
-        if i > BI  Savg += S end 
-        if (i % 5 == 0)
-            @printf("iteration: %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, ACCZ/((i-1)*blocks + (k-1) + 1), w, A)
+            push!(ws, w)
+ #           push!(Zs,  (Z[22,11], Z[5,4]))
+            if i > BI  Savg += S end 
+            if (i % 5 == 0)
+                @printf("iteration: %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, ACCZ/((i-1)*blocks + (k-1) + 1), w, A)
+            end
         end
-    end
 
-        if (i % 2_500 == 0)
-            push!(Ss, S)
+            if (i % 500 == 0)
+                push!(Ss, S)
+            end
         end
-    end
+    
 end
+
+
+
+
+
 
 # Plots
 sz = (500,600)
