@@ -239,3 +239,7 @@ lo2 = @layout [a;b]
 pforward = plot(pobs, ptrue, layout=lo2)
 savefig(pforward, "true_and_observed.png")
 savefig(pall_pobs,  "true_and_outmcmc.png")
+
+ploglik = plot(ws[1:blocks:(blocks*ITER)], label="",
+        ylabel="loglikelihood", xlabel="iteration")
+savefig(ploglik,  "trace_loglik.png")
