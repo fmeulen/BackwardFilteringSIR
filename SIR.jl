@@ -213,7 +213,7 @@ lo = @layout [a b; c d]
 pall_pobs = plot(pinit, plast, ptrue, pavg, layout=lo)#, size=(800,1600))
 
 lo2 = @layout [a;b]
-pforward = plot(pobs, ptrue, layout=lo2)
+pforward = plot(ptrue, pobs,  layout=lo2)
 
 ploglik = plot(out.weights, label="", ylabel="loglikelihood", xlabel="MCMC update step", linewidth=2.0)
 
