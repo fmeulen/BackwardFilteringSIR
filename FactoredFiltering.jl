@@ -155,7 +155,7 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     #     #  logweight += log(weight)
     #  end
 ###    
-     for i=1:N
+     for i=1:FMC.N
         p = Πroot[i] .* messages[2].approximatepullback[i]  #messages[1].factoredhtransform[i]#
         samples[i,1] = discretesample(p, sum(p)*Z[i,1])
      end
