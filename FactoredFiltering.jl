@@ -88,18 +88,26 @@ function backwardfiltering(FMC::FactorisedMarkovChain{T}, kernel::Function, appr
         messages[t] = Message(htransforms[t], approximatepullback)
     end
         
-    logh = 0.0   # only relevant if θ is updated
-    for (key, value) in htransforms[2]
-        #a = htransforms[2][key] .* Πroot        
-        a = dot(htransforms[2][key],  Πroot[key])
-        htransforms[1][key] = [a]
-        logh += log(a)
-    end
+    logh = 0.0
+    for i=1:N
+        logh += log( dot( Πroot[i],  htransforms[1][i] ) )
+     end
      
-    messages[1] = Message(htransforms[1] , htransforms[2])
+#     messages[1] = Message(htransforms[1] , htransforms[1])
 
-#    logh = sum(log.(first.(htransforms[1]))) 
-#    logh = (x0) -> sum(log(htransforms[1][i][x0[i]]) for i=1:FMC.N) # should not be FMC.root but x0
+### what M and F coded up
+    # logh = 0.0   # only relevant if θ is updated
+    # for (key, value) in htransforms[2]
+    #     #a = htransforms[2][key] .* Πroot        
+    #     a = dot(htransforms[2][key],  Πroot[key])
+    #     htransforms[1][key] = [a]
+    #     logh += log(a)
+    # end
+     
+    # messages[1] = Message(htransforms[1] , htransforms[2])
+###
+
+
 #    logh = sum(log(htransforms[1][i][FMC.root[i]]) for i=1:FMC.N) # should not be FMC.root but x0
     messages, logh
 end
@@ -139,14 +147,19 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     # That should for individual i be proportional to Πroot[i] * messages[1].factoredhtransform[i]
     # Furthermore, the weight should be computed
 
-     for i in 1:FMC.N
-         p = Πroot[i] .* messages[1].approximatepullback[i]
-         samples[i,1] = discretesample(p, sum(p)*Z[i,1])
-        #  weight = dot(p, messages[1].factoredhtransform[i]) #/ Πroot # to be adjusted
-        #  logweight += log(weight)
+### M and F imple
+    #  for i in 1:FMC.N
+    #      p = Πroot[i] .* messages[1].approximatepullback[i]  # what we thought it to be
+    #      samples[i,1] = discretesample(p, sum(p)*Z[i,1])
+    #     #  weight = dot(p, messages[1].factoredhtransform[i]) #/ Πroot # to be adjusted
+    #     #  logweight += log(weight)
+    #  end
+###    
+     for i=1:N
+        p = Πroot[i] .* messages[2].approximatepullback[i]  #messages[1].factoredhtransform[i]#
+        samples[i,1] = discretesample(p, sum(p)*Z[i,1])
      end
-    
-     
+
 
     #     inplacemultiplication!(p, messages[1].factoredhtransform[i])
     #     samples[i,t] = discretesample(p, sum(p)*Z[i,t])
