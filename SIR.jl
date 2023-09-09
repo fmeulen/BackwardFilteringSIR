@@ -179,16 +179,16 @@ function mcmc(G, ms, obs; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
 end
 
 
-out = mcmc(G, ms, obs;ITER=200, ρ=0.9 )
+out = mcmc(G, ms, obs;ITER=400, ρ=0.9 )
 
 
 
 # Plots
-sz = (500,600)
-pinit = heatmap(out.Sinit, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="first iteration", size=sz)
-ptrue = heatmap(Strue, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="true", size=sz)
-plast = heatmap(out.Slast, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="last iteration", size=sz)
-pavg = heatmap(out.Savg, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, yrotation=90, dps=600, title="average", size=sz)
+sz = (700,600)
+pinit = heatmap(out.Sinit, xlabel="time", ylabel="individual", colorbar=false, yrotation=90, dps=600, title="first iteration", size=sz)
+ptrue = heatmap(Strue, xlabel="time", ylabel="individual", colorbar=false, yrotation=90, dps=600, title="true", size=sz)
+plast = heatmap(out.Slast, xlabel="time", ylabel="individual", colorbar=false, yrotation=90, dps=600, title="last iteration", size=sz)
+pavg = heatmap(out.Savg, xlabel="time", ylabel="individual", colorbar=false, yrotation=90, dps=600, title="average", size=sz)
 
 # construct observation ColorPalette
 defaultpalette = palette(cgrad(:default, categorical=true), 3)
@@ -205,7 +205,7 @@ for ((i,t), state) in obsstates
     Yobs[max(i-1,1):i, max(t-3,1):t] .= state
 end
 
-pobs = heatmap(Yobs, xlabel=L"$t$", ylabel=L"$i$", colorbar=false, 
+pobs = heatmap(Yobs, xlabel="time", ylabel="individual", colorbar=false, 
 color=observationpalette, yrotation=90, dps=600, title="observed", background_color_subplot=white)
 
 
@@ -215,7 +215,7 @@ pall_pobs = plot(pinit, plast, ptrue, pavg, layout=lo)#, size=(800,1600))
 lo2 = @layout [a;b]
 pforward = plot(pobs, ptrue, layout=lo2)
 
-ploglik = plot(out.weights, label="", ylabel="loglikelihood", xlabel="MCMC update step")
+ploglik = plot(out.weights, label="", ylabel="loglikelihood", xlabel="MCMC update step", linewidth=2.0)
 
 
 savefig(pforward, "true_and_observed.png")
