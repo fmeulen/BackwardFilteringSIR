@@ -67,12 +67,17 @@ SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, dims)
 
 
 # Instantiation with the true dynamics
-θ = [1.2, 0.6, 0.03]
+θ = [1.2, 0.6, 0.03] # now in paper
+θ = 5.0*[1.2, 0.1, 0.03]
+
 G = SIR(θ)
 
 # forward simulate and extract observations from it
-Ztrue, Strue, obsparents = create_data(Arbitrary(), G, 300; seednr = 15)
-    
+Nobs = 300
+Ztrue, Strue, obsparents = create_data(Arbitrary(), G, Nobs; seednr = 15)
+
+plot(heatmap(Ztrue), heatmap(Strue))
+
 # The emissions process / matrix. Many different options
 O = Matrix(1.0*LinearAlgebra.I, 3, 3)
 #O = [0.98 0.01 0.01; 0.01 0.98 0.01; 0.01 0.01 0.98] # observe with error
@@ -175,7 +180,7 @@ function mcmc(G, ms, obs; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
         if (i % 500 == 0)    push!(Ss, S)          end
     end
 
-    (Sinit=Sinit, Slast=S, Siterates=Ss, Savg=Savg, weights=ws)
+    (Sinit=Sinit, Slast=S, Siterates=Ss, Savg=Savg, weights=ws, Zinit=Zinit, Zlast=Z)
 end
 
 
@@ -221,3 +226,5 @@ ploglik = plot(out.weights, label="", ylabel="loglikelihood", xlabel="MCMC updat
 savefig(pforward, "true_and_observed.png")
 savefig(pall_pobs,  "true_and_outmcmc.png")
 savefig(ploglik,  "trace_loglik.png")
+
+plot(heatmap(Ztrue, title="Ztrue"), heatmap(out.Zinit, title="Z first iteration"), heatmap(out.Zlast, title="Z last iteration"))
