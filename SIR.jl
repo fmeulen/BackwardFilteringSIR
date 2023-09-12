@@ -127,7 +127,7 @@ plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L
 
 
 
-function mcmc(G, ms, obs; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
+function mcmc(G, ms, obs, Πroot; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
     BI = ITER÷BIfactor
     # takes blocks of size tinterval
     blocks = (G.T-1)÷tinterval
@@ -170,7 +170,7 @@ function mcmc(G, ms, obs; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
             
 
             if (i % 5 == 0)
-                @printf("iteration: %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, ACCZ/((i-1)*blocks + (k-1) + 1), w, A)
+                @printf("iteration: %d %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, k,  ACCZ/((i-1)*blocks + (k-1) + 1), w, A)
             end
             push!(ws, w)
         end
@@ -184,7 +184,7 @@ function mcmc(G, ms, obs; ITER=100, BIfactor=5, ρ=0.99, tinterval=10)
 end
 
 
-out = mcmc(G, ms, obs;ITER=400, ρ=0.9 )
+out = mcmc(G, ms, obs, Πroot;ITER=400, ρ=0.9 )
 
 
 
@@ -228,3 +228,5 @@ savefig(pall_pobs,  "true_and_outmcmc.png")
 savefig(ploglik,  "trace_loglik.png")
 
 plot(heatmap(Ztrue, title="Ztrue"), heatmap(out.Zinit, title="Z first iteration"), heatmap(out.Zlast, title="Z last iteration"))
+
+
