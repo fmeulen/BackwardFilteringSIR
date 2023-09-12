@@ -54,8 +54,8 @@ typeToSupport = Dict(["1" => (E, E, E), "2" => (E, E, E, E), "Inner" => (E, E, E
 dynamics(θ) = cpds(nodeToType, typeToP, typeToSupport, θ)
 
 # Define the true initial state / root
-Iinitial = 3
-root = vcat(fill(_I_, Iinitial), fill(_S_, N-Iinitial))
+Iinitial = 2
+root = vcat(fill(_S_, N÷3-Iinitial), fill(_I_, Iinitial÷2), fill(_S_, N-N÷3), fill(_I_, Iinitial-Iinitial÷2))
 
 statespace = Dict(i => E for i in 1:N)
 parents = Dict(i => intersect(i-2:i+2, 1:N) for i in 1:N)
@@ -94,10 +94,10 @@ obs = (obsparents, obscpds, obsstates)
 propagation = boyenkoller
 
 # prior on the initial state of each individual
-Πroot1 = [0.9, 0.05, 0.05]
-Πroot2 = [1.0, 0.0, 0.0]
-Πroot =  merge(Dict(i => Πroot1 for i in 1:N÷2), Dict(i => Πroot2 for i in N÷2:N))
-
+# Πroot1 = [0.9, 0.05, 0.05]
+# Πroot2 = [1.0, 0.0, 0.0]
+# Πroot =  merge(Dict(i => Πroot1 for i in 1:N÷2), Dict(i => Πroot2 for i in N÷2:N))
+Πroot =  Dict(i => [0.98, 0.02, 0.00] for i in 1:N)
 
 # Backward filter
 ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
@@ -106,10 +106,9 @@ ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
 
 
 # Interesting to look at the h-transform
-id = 20
+id = 40
 ss = sum(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), dims=2)
 #plot(ss) # is now 1 everywhere
-
 
 plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...)./ss,
         xlabel=L"$t$", ylabel=L"\phi_i", label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600, title="approximate h-transform for individual $id")
@@ -117,8 +116,18 @@ plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...)./ss,
 
 # above (with normalisation) and below (without normalisation) are now seemingly identical, as expected
 
-plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L"\phi_i", label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600, title="approximate h-transform for individual $id")
+pB = plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L"\phi_i", label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600, title="approximate h-transform for individual $id")
 
+# when do we observe individual id?
+ℴ = values(obsparents) # (individal, time) combinations of observations
+Iind = findall(first.(ℴ).==id)
+tℴ = last.(ℴ)[Iind]  # these are the times
+vline!(pB, tℴ, lwd=2, color="black", label="obs. time")
+Strue[id, tℴ]
+
+#ll = @layout [a;b]
+plot(pB)#, layout=ll)
+savefig(pB, "htransform.png")
 
 # Update Z for each segment of 50 time steps individually
 
@@ -195,6 +204,13 @@ ptrue = heatmap(Strue, xlabel="time", ylabel="individual", colorbar=false, yrota
 plast = heatmap(out.Slast, xlabel="time", ylabel="individual", colorbar=false, yrotation=90, dps=600, title="last iteration", size=sz)
 pavg = heatmap(out.Savg, xlabel="time", ylabel="individual", colorbar=false, yrotation=90, dps=600, title="average", size=sz)
 
+ii = 1:50
+ptrue100 = heatmap(Strue[:,ii], xlabel="time", ylabel="individual", colorbar=false, yrotation=90, dps=600, title="true (zoomed)", size=sz)
+pavg100 = heatmap(out.Savg[:,ii], xlabel="time", ylabel="individual", colorbar=false, yrotation=90, dps=600, title="average (zoomed)", size=sz)
+
+
+
+
 # construct observation ColorPalette
 defaultpalette = palette(cgrad(:default, categorical=true), 3)
 white = RGBA{Float64}(255, 255, 255)
@@ -214,13 +230,13 @@ pobs = heatmap(Yobs, xlabel="time", ylabel="individual", colorbar=false,
 color=observationpalette, yrotation=90, dps=600, title="observed", background_color_subplot=white)
 
 
-lo = @layout [a b; c d]
-pall_pobs = plot(pinit, plast, ptrue, pavg, layout=lo)#, size=(800,1600))
+lo = @layout [a b; c d; e f]
+pall_pobs = plot(pinit, plast, ptrue, pavg, ptrue100, pavg100, layout=lo)#, size=(800,1600))
 
 lo2 = @layout [a;b]
 pforward = plot(ptrue, pobs,  layout=lo2)
 
-ploglik = plot(out.weights, label="", ylabel="loglikelihood", xlabel="MCMC update step", linewidth=2.0)
+ploglik = plot(out.weights, label="", ylabel="loglikelihood", xlabel="MCMC update step", linewidth=2.0, size = (700,400))
 
 
 savefig(pforward, "true_and_observed.png")
