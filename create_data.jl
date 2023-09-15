@@ -3,6 +3,7 @@
 abstract type  Scenario end
 struct Arbitrary<: Scenario end
 struct Structured<: Scenario end
+struct AllObserved<: Scenario end
 
 ## specify the observations 
 

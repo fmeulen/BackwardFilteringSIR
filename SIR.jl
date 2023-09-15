@@ -27,13 +27,17 @@ SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, (N, T))
 G = SIR(θ)
 
 # forward simulate and extract observations from it
-Nobs = 300
-Ztrue, Strue, obsparents = create_data(Arbitrary(), G, Nobs; seednr = 15)
+#Nobs = 300
+#Ztrue, Strue, obsparents = create_data(Arbitrary(), G, Nobs; seednr = 15)
+
+Ztrue, Strue, obsparents = create_data(Structured(), G; seednr = 5, tinterval=1, iinterval=1)
 
 plot(heatmap(Ztrue), heatmap(Strue))
 
 # The emissions process / matrix. Many different options
-O = Matrix(1.0*LinearAlgebra.I, 3, 3)
+O = [1.0 0.0; 0.0 1.0 ; 1.0 0.0] # observe infected
+O = [.9 .1; 0.1 .9 ; .9 0.1] # observe infected
+#O = Matrix(1.0*LinearAlgebra.I, 3, 3)
 #O = [0.98 0.01 0.01; 0.01 0.98 0.01; 0.01 0.01 0.98] # observe with error
 #O = [0.95 0.05; 0.95 0.05; 0.05 0.95] # observe either {S or I} or {R} with error
 
@@ -76,7 +80,7 @@ savefig(pB, "htransform.png")
 
 ################ run mcmc ################
 
-out = mcmc(G, ms, obs, Πroot;ITER=500, ρ=0.95 )
+out = mcmc(G, ms, obs, Πroot;ITER=100, ρ=0.5 )
 
 ################ visualisation ################
 
