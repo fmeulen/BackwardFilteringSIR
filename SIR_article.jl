@@ -44,6 +44,7 @@ obs = (obsparents, obscpds, obsstates)
 propagation = boyenkoller
 
 Πroot =  Dict(i => [0.98, 0.02, 0.00] for i in 1:N)
+#Πroot =  Dict(i => [0.5, 0.5, 0.00] for i in 1:N)
 
 # Backward filter
 ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
@@ -67,8 +68,8 @@ plot(pB)#, layout=ll)
 savefig(pB, "htransform.png")
 
 ################ run mcmc ################
-
-out = mcmc(G, ms, obs, Πroot;ITER=600, ρ=0.95 )
+Random.seed!(2)
+out = mcmc(G, ms, obs, Πroot;ITER=1000, ρ=0.95, BIfactor=3)
 
 ################ visualisation ################
 
@@ -82,7 +83,7 @@ pavg = heatmap(out.Savg, xlabel="",ylabel="", colorbar=false, yrotation=90, dps=
 ii = 1:50
 ptrue_zoomed = heatmap(Strue[:,ii],xlabel="",ylabel="", colorbar=false, yrotation=90, dps=600, title="true (zoomed)", size=sz)
 pavg_zoomed = heatmap(out.Savg[:,ii], xlabel="",ylabel="", colorbar=false, yrotation=90, dps=600, title="average (zoomed)", size=sz)
-pinit_zoomed = heatmap(out.Sinit[:,ii],xlabel="",ylabel="", colorbar=false, yrotation=90, dps=600, title="initial (zoomed)", size=sz)
+pinit_zoomed = heatmap(out.Sinit[:,ii],xlabel="",ylabel="", colorbar=false, yrotation=90, dps=600, title="first iter. (zoomed)", size=sz)
 
 # construct observation ColorPalette
 defaultpalette = palette(cgrad(:default, categorical=true), 3)
