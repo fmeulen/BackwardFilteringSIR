@@ -39,7 +39,7 @@ function inplacemultiplication!(a::AbstractVector, b::AbstractVector)
     end
 end
 
-function backwardfiltering(FMC::FactorisedMarkovChain{T}, kernel::Function, approximations, observations, Πroot) where T
+function backwardfiltering(FMC::FactorisedMarkovChain{T}, kernel::Function, approximations, observations, Πroot, size_neighbourhood) where T
     # we first initialise the (faactored) htransforms for all time steps
 
     htransforms = Dict([t => Dict([i => Vector{T}(ones(length(E))) for i in 1:FMC.N]) for t in 1:FMC.T])
@@ -73,9 +73,9 @@ function backwardfiltering(FMC::FactorisedMarkovChain{T}, kernel::Function, appr
         # just always set approxiations to false
 
         if approximations == false
-            approximatepullback = kernel(factoredpullback, htransforms[t-1], FMC.N, t, 2)
+            approximatepullback = kernel(factoredpullback, htransforms[t-1], FMC.N, t, size_neighbourhood)
         else
-            approximatepullback = kernel(factoredpullback, approximations[t-1], FMC.N, t, 2)
+            approximatepullback = kernel(factoredpullback, approximations[t-1], FMC.N, t, size_neighbourhood)
         end
 
         # note: the kernel function handles normalisation and multiplication with observation term
@@ -87,23 +87,23 @@ function backwardfiltering(FMC::FactorisedMarkovChain{T}, kernel::Function, appr
 
         messages[t] = Message(htransforms[t], approximatepullback)
     end
-        
+
     logh = 0.0
     for i=1:N
         logh += log( dot( Πroot[i],  htransforms[1][i] ) )
      end
-     
+
 #     messages[1] = Message(htransforms[1] , htransforms[1])
 
 ### what M and F coded up
     # logh = 0.0   # only relevant if θ is updated
     # for (key, value) in htransforms[2]
-    #     #a = htransforms[2][key] .* Πroot        
+    #     #a = htransforms[2][key] .* Πroot
     #     a = dot(htransforms[2][key],  Πroot[key])
     #     htransforms[1][key] = [a]
     #     logh += log(a)
     # end
-     
+
     # messages[1] = Message(htransforms[1] , htransforms[2])
 ###
 
@@ -143,7 +143,7 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     logweight = 0.
     #samples[:,1] = FMC.root
 
-    # FRANK: HERE WE SHOULD SAMPLE Xs for time zero, for given Z. 
+    # FRANK: HERE WE SHOULD SAMPLE Xs for time zero, for given Z.
     # That should for individual i be proportional to Πroot[i] * messages[1].factoredhtransform[i]
     # Furthermore, the weight should be computed
 
@@ -154,7 +154,7 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     #     #  weight = dot(p, messages[1].factoredhtransform[i]) #/ Πroot # to be adjusted
     #     #  logweight += log(weight)
     #  end
-###    
+###
      for i=1:FMC.N
         p = Πroot[i] .* messages[2].approximatepullback[i]  #messages[1].factoredhtransform[i]#
         samples[i,1] = discretesample(p, sum(p)*Z[i,1])
@@ -165,11 +165,11 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     #     samples[i,t] = discretesample(p, sum(p)*Z[i,t])
 
     #     logweight += log(weight)
-    # end 
+    # end
 
     obsparents, obscpds, obsstates = observations
 
-    
+
     for t in 2:FMC.T
         #message = messages[t] faster ?
         for i in 1:FMC.N
