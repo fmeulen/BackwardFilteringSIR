@@ -1,7 +1,7 @@
-function mcmc(G, ms, obs, Πroot; ITER=100, BIfactor=3, ρ=0.99, tinterval=10)
+function mcmc(G, ms, obs, Πroot; ITER=100, BIfactor=4, ρ=0.99, tinterval=10)
     BI = ITER÷BIfactor
     # takes blocks of size tinterval
-    blocks = (G.T-1)÷tinterval
+    blocks = G.T÷tinterval
 
     𝒢 = forwardguiding(G, ms, obs, Πroot)
 
@@ -24,7 +24,7 @@ function mcmc(G, ms, obs, Πroot; ITER=100, BIfactor=3, ρ=0.99, tinterval=10)
         # Z step only
         for k = 1:blocks
             qZ′ = copy(qZ)
-            ind = (k-1)*tinterval+1:k*tinterval+1
+            ind = (k-1)*tinterval+1:k*tinterval
             qW = randn(Float64, (N, length(ind)))
             qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
             Z′ = cdf.(Normal(), qZ′)
@@ -38,16 +38,16 @@ function mcmc(G, ms, obs, Πroot; ITER=100, BIfactor=3, ρ=0.99, tinterval=10)
                 S, w = S′, w′
                 ACCZ += 1
             end
-            
+
 
             if (i % 5 == 0)
                 @printf("iteration: %d %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, k,  ACCZ/((i-1)*blocks + (k-1) + 1), w, A)
             end
             push!(ws, w)
         end
-       
+
 #       push!(Zs,  (Z[22,11], Z[5,4]))
-        if i > BI  Savg += S end 
+        if i > BI  Savg += S end
         if (i % 500 == 0)    push!(Ss, S)          end
     end
 

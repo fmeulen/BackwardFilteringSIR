@@ -4,7 +4,7 @@ using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distr
 
 # Problem dimensions
 N = 100
-T = 501
+T = 500
 
 include("FactoredFiltering.jl")
 include("create_data.jl")
@@ -17,7 +17,7 @@ Iinitial = 2
 root = vcat(fill(_S_, N÷3-Iinitial), fill(_I_, Iinitial÷2), fill(_S_, N-N÷3), fill(_I_, Iinitial-Iinitial÷2))
 
 # Parametric description of the entire forward model
-SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, (N, T))
+SIR(θ) = FactorisedMarkovChain(statespace, parents2, dynamics2(θ), root, (N, T))
 
 # Instantiation with the true dynamics
 θ = 5.0*[1.2, 0.1, 0.03]
@@ -47,13 +47,13 @@ propagation = boyenkoller
 #Πroot =  Dict(i => [0.5, 0.5, 0.00] for i in 1:N)
 
 # Backward filter
-ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
+ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot, size_neighbourhood)
 
 ################
 # Interesting to look at the h-transform, visualise this for individual `id`
 id = 40
-pB = plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L"g_t", 
-            label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600, 
+pB = plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L"g_t",
+            label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600,
             title="guiding vectors for individual $id")
 
 # when do we observe individual id?
@@ -69,7 +69,7 @@ savefig(pB, "htransform.png")
 
 ################ run mcmc ################
 Random.seed!(2)
-out = mcmc(G, ms, obs, Πroot;ITER=1000, ρ=0.95, BIfactor=3)
+out = mcmc(G, ms, obs, Πroot;ITER=1000, ρ=0.96, BIfactor=10)
 
 ################ visualisation ################
 
@@ -100,12 +100,11 @@ for ((i,t), state) in obsstates
     Yobs[max(i-1,1):i, max(t-3,1):t] .= state
 end
 
-pobs = heatmap(Yobs, xlabel="time", ylabel="individual", colorbar=false, 
-color=observationpalette, yrotation=90, dps=600, title="observed", background_color_subplot=white)
+pobs = heatmap(Yobs, xlabel="time", ylabel="individual", colorbar=false,color=observationpalette, yrotation=90, dps=600, title="observed", background_color_subplot=white)
 
 
 lo = @layout [a b; c d; e f g]
-pall_pobs = plot(pinit, plast, ptrue, pavg, pinit_zoomed, 
+pall_pobs = plot(pinit, plast, ptrue, pavg, pinit_zoomed,
             ptrue_zoomed, pavg_zoomed, layout=lo)#, xlabel="time", ylabel="individual")#, size=(800,1600))
 
 lo2 = @layout [a;b]
@@ -116,7 +115,3 @@ ploglik = plot(out.weights, label="", ylabel="loglikelihood", xlabel="MCMC updat
 savefig(pforward, "true_and_observed.png")
 savefig(pall_pobs,  "true_and_outmcmc.png")
 savefig(ploglik,  "trace_loglik.png")
-
-
-
-
