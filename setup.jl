@@ -5,7 +5,7 @@
 # Template transition model constructor
 function ptemplate(i, parentstates::Tuple{Vararg{State}}; θ)
     λ, μ, ν = θ
-    δ=0.001 
+    δ=0.00
     τ=0.1
     
     neighbours = setdiff(1:length(parentstates), i)
@@ -31,7 +31,8 @@ pN(parentstates; θ)     = ptemplate(3, parentstates::NTuple{3, State}; θ)
 E = [_S_, _I_, _R_]
 
 statespace = Dict(i => E for i in 1:N)
-parents = Dict(i => intersect(i-2:i+2, 1:N) for i in 1:N)
+size_neighboorhood = 1 # in article set to 2
+parents = Dict(i => intersect(i-size_neighboorhood:i+size_neighboorhood, 1:N) for i in 1:N)
 
 
 # Map each node id to a 'type'

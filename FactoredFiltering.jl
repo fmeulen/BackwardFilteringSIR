@@ -143,33 +143,14 @@ function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Messa
     logweight = 0.
     #samples[:,1] = FMC.root
 
-    # FRANK: HERE WE SHOULD SAMPLE Xs for time zero, for given Z. 
-    # That should for individual i be proportional to Πroot[i] * messages[1].factoredhtransform[i]
-    # Furthermore, the weight should be computed
-
-### M and F imple
-    #  for i in 1:FMC.N
-    #      p = Πroot[i] .* messages[1].approximatepullback[i]  # what we thought it to be
-    #      samples[i,1] = discretesample(p, sum(p)*Z[i,1])
-    #     #  weight = dot(p, messages[1].factoredhtransform[i]) #/ Πroot # to be adjusted
-    #     #  logweight += log(weight)
-    #  end
-###    
+  
      for i=1:FMC.N
         p = Πroot[i] .* messages[2].approximatepullback[i]  #messages[1].factoredhtransform[i]#
         samples[i,1] = discretesample(p, sum(p)*Z[i,1])
      end
 
-
-    #     inplacemultiplication!(p, messages[1].factoredhtransform[i])
-    #     samples[i,t] = discretesample(p, sum(p)*Z[i,t])
-
-    #     logweight += log(weight)
-    # end 
-
     obsparents, obscpds, obsstates = observations
 
-    
     for t in 2:FMC.T
         #message = messages[t] faster ?
         for i in 1:FMC.N

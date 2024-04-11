@@ -119,4 +119,3 @@ savefig(ploglik,  "trace_loglik.png")
 
 
 
-
