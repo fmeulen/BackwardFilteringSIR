@@ -5,6 +5,7 @@ using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distr
 # Problem dimensions
 N = 100
 T = 501
+size_neighbourhood = 1
 
 include("FactoredFiltering.jl")
 include("create_data.jl")
@@ -17,8 +18,11 @@ include("mcmc.jl")
 Iinitial = 2
 root = vcat(fill(_S_, N÷3-Iinitial), fill(_I_, Iinitial÷2), fill(_S_, N-N÷3), fill(_I_, Iinitial-Iinitial÷2))
 
-# Parametric description of the entire forward model
-SIR(θ) = FactorisedMarkovChain(statespace, parents, dynamics(θ), root, (N, T))
+δ = 0.0 # artificial par to become infected without infected neighbours
+τ = 0.1 # discretisation time step of SIR model
+
+# Parametric description of the entire forward model (I wish to pass δ and τ as well)
+SIR(θ, δ, τ) = FactorisedMarkovChain(statespace, parents, dynamics(θ, δ, τ), root, (N, T))
 
 # Instantiation with the true dynamics
 θ = [1.2, 0.6, 0.03] # now in paper
@@ -40,6 +44,10 @@ O = [.9 .1; 0.1 .9 ; .9 0.1] # observe infected
 #O = Matrix(1.0*LinearAlgebra.I, 3, 3)
 #O = [0.98 0.01 0.01; 0.01 0.98 0.01; 0.01 0.01 0.98] # observe with error
 #O = [0.95 0.05; 0.95 0.05; 0.05 0.95] # observe either {S or I} or {R} with error
+Id = Matrix(1.0*LinearAlgebra.I, 3, 3)
+δobs = 0.0001
+O = (1.0-δobs) * Id + δobs * (ones(3,3) - Id)  # observe with error
+
 
 # Map each Observation variable index to corresponding emission process
 obscpds = Dict((i,t) => O for (i,t) in keys(obsparents))
