@@ -6,10 +6,13 @@
 function ptemplate(i, parentstates::Tuple{Vararg{State}}, θ, δ, τ)
     λ, μ, ν = θ
 
+
+
     neighbours = setdiff(1:length(parentstates), i)
     N_i = sum(parentstates[neighbours] .== _I_)
+
     ψ(u) = exp(-τ*u)
-    
+
     parentstates[i] == _S_ ? [(1.0-δ)*ψ(λ*N_i),  1.0-(1.0-δ)*ψ(λ*N_i),  0.      ] :
     parentstates[i] == _I_ ? [ 0.,               ψ(μ),                  1.0-ψ(μ)] :
     parentstates[i] == _R_ ? [ 1.0-ψ(ν),         0.,                    ψ(ν)    ] : println("Error")
@@ -19,7 +22,7 @@ end
 # Transition model for each individual i, returns p.dist given the parentsstates
 p1(parentstates; θ)     = ptemplate(1, parentstates::NTuple{3, State}, θ, δ, τ)
 p2(parentstates; θ)     = ptemplate(2, parentstates::NTuple{4, State}, θ, δ, τ)
-pInnerO(parentstates; θ) = ptemplate(3, parentstates::NTuple{5, State}, θ, δ, τ)
+pInner(parentstates; θ) = ptemplate(3, parentstates::NTuple{5, State}, θ, δ, τ)
 pM(parentstates; θ)     = ptemplate(3, parentstates::NTuple{4, State}, θ, δ, τ)
 pN(parentstates; θ)     = ptemplate(3, parentstates::NTuple{3, State}, θ, δ, τ)
 
@@ -49,7 +52,7 @@ dynamics(θ) = cpds(nodeToType, typeToP, typeToSupport, θ)
 
 ## node To Type
 
-
+#size_neighbourhood = 1
 
 # The general state-space
 E = [_S_, _I_, _R_]

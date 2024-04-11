@@ -112,7 +112,7 @@ function backwardfiltering(FMC::FactorisedMarkovChain{T}, kernel::Function, appr
     messages, logh
 end
 
-function cpds(nodeToType, typeToP, typeToSupport, θ::Vector{T}) where T
+function cpds(nodeToType, typeToP, typeToSupport, θ::Vector{T}, δ, τ) where T
     typeToCpd = Dict{String, Dict{Vector{UInt8}, Vector{T}}}()
     typeToK = Dict{String, SArray{S, T, 2, L} where {S <: Tuple, L}}()
 
@@ -121,7 +121,7 @@ function cpds(nodeToType, typeToP, typeToSupport, θ::Vector{T}) where T
 
     for (type, p) in typeToP
         # should build the dict and matrix in one loop // make this a view
-        tempcpd = Dict([UInt8.(collect(parentsstate)) => p(parentsstate; θ=θ) for parentsstate in Iterators.product(typeToSupport[type]...)])
+        tempcpd = Dict([UInt8.(collect(parentsstate)) => p(parentsstate, θ, δ, τ) for parentsstate in Iterators.product(typeToSupport[type]...)])
         typeToCpd[type] = tempcpd
         typeToK[type] = SMatrix{length(E)^length(typeToSupport[type]), length(E), T}(reduce(hcat, [tempcpd[UInt8.(collect(parentsstate))] for parentsstate in Iterators.product(typeToSupport[type]...)])')
     end
@@ -134,9 +134,9 @@ function cpds(nodeToType, typeToP, typeToSupport, θ::Vector{T}) where T
     nodeToCpd, nodeToK
 end
 
-function cpds(nodeToType, typeToP, typeToSupport, θ)
-    cpds(nodeToType, typeToP, typeToSupport, [θ])
-end
+#function cpds(nodeToType, typeToP, typeToSupport, θ)
+#    cpds(nodeToType, typeToP, typeToSupport, [θ])
+#end
 
 function forwardguiding(FMC::FactorisedMarkovChain{T}, messages::Dict{Int, Message{T}}, observations, Z::Matrix, Πroot) where T
     samples = Matrix{UInt8}(undef, FMC.N, FMC.T)
