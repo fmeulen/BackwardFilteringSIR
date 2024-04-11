@@ -58,7 +58,7 @@ propagation = boyenkoller
 Πroot =  Dict(i => [0.98, 0.02, 0.00] for i in 1:N)
 
 # Backward filter
-ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot)
+ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot, size_neighbourhood)
 
 ################
 # Interesting to look at the h-transform, visualise this for individual `id`

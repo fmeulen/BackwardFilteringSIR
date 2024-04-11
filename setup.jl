@@ -58,13 +58,13 @@ size_neighbourhood = 1
 E = [_S_, _I_, _R_]
 statespace = Dict(i => E for i in 1:N)
 
-parents2 = Dict(i => intersect(i-size_neighbourhood:i+size_neighbourhood, 1:N) for i in 1:N)
+parents = Dict(i => intersect(i-size_neighbourhood:i+size_neighbourhood, 1:N) for i in 1:N)
 
-nodeToType2start  = Dict(i => string(i) for i = 1:size_neighbourhood)
-nodeToType2middle = Dict(c => "Inner" for c ∈ 1+size_neighbourhood:N-size_neighbourhood)
-nodeToType2end    = Dict(i => string(i) for i = N+1-size_neighbourhood:N)
+nodeToTypestart  = Dict(i => string(i) for i = 1:size_neighbourhood)
+nodeToTypemiddle = Dict(c => "Inner" for c ∈ 1+size_neighbourhood:N-size_neighbourhood)
+nodeToTypeend    = Dict(i => string(i) for i = N+1-size_neighbourhood:N)
 
-nodeToType2 = merge(nodeToType2start, nodeToType2middle, nodeToType2end)
+nodeToType = merge(nodeToTypestart, nodeToTypemiddle, nodeToTypeend)
 
 ## type To P
 
@@ -80,21 +80,21 @@ function pRight(parentstates::NTuple{s, State}; θ) where s
     ptemplate(1+size_neighbourhood, parentstates; θ)
 end
 
-typeToP2start = Dict(string(i) => pLeft for i = 1:size_neighbourhood)
-typeToP2inner = Dict("Inner" => pInner)
-typeToP2end   = Dict(string(i) => pRight for i=N-size_neighbourhood+1:N)
+typeToPstart = Dict(string(i) => pLeft for i = 1:size_neighbourhood)
+typeToPinner = Dict("Inner" => pInner)
+typeToPend   = Dict(string(i) => pRight for i=N-size_neighbourhood+1:N)
 
-typeToP2 = merge(typeToP2start, typeToP2inner, typeToP2end)
+typeToP = merge(typeToPstart, typeToPinner, typeToPend)
 
 
 ## type To Support
 
-typeToSupport2start  = Dict([string(i) => ntuple(j -> E, i+size_neighbourhood) for i=1:size_neighbourhood])
-typeToSupport2middle = Dict(["Inner" => ntuple(j -> E, 1+2*size_neighbourhood)])
-typeToSupport2end    = Dict([string(i) => ntuple(j -> E, N-i+1+size_neighbourhood) for i = N+1-size_neighbourhood:N])
+typeToSupportstart  = Dict([string(i) => ntuple(j -> E, i+size_neighbourhood) for i=1:size_neighbourhood])
+typeToSupportmiddle = Dict(["Inner" => ntuple(j -> E, 1+2*size_neighbourhood)])
+typeToSupportend    = Dict([string(i) => ntuple(j -> E, N-i+1+size_neighbourhood) for i = N+1-size_neighbourhood:N])
 
-typeToSupport2 = merge(typeToSupport2start, typeToSupport2middle, typeToSupport2end)
+typeToSupport = merge(typeToSupportstart, typeToSupportmiddle, typeToSupportend)
 
 ## done
 
-dynamics2(θ) = cpds(nodeToType2, typeToP2, typeToSupport2, θ)
+dynamics(θ) = cpds(nodeToType, typeToP, typeToSupport, θ)
