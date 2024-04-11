@@ -5,6 +5,7 @@ using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distr
 # Problem dimensions
 N = 100
 T = 500
+size_neighbourhood = 1
 
 include("FactoredFiltering.jl")
 include("create_data.jl")
@@ -17,12 +18,12 @@ Iinitial = 2
 root = vcat(fill(_S_, N÷3-Iinitial), fill(_I_, Iinitial÷2), fill(_S_, N-N÷3), fill(_I_, Iinitial-Iinitial÷2))
 
 # Parametric description of the entire forward model
-SIR(θ) = FactorisedMarkovChain(statespace, parents2, dynamics2(θ), root, (N, T))
+SIR(θ, δ, τ) = FactorisedMarkovChain(statespace, parents, dynamics(θ, δ, τ), root, (N, T))
 
 # Instantiation with the true dynamics
-θ = 5.0*[1.2, 0.1, 0.03]
+θ = 5.0*[1.2, 0.1, 0.03]; δ = 0.001; τ = 0.1
 
-G = SIR(θ)
+G = SIR(θ, δ, τ)
 
 # forward simulate and extract observations from it
 Nobs = 300

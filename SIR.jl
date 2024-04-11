@@ -4,7 +4,7 @@ using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distr
 
 # Problem dimensions
 N = 100
-T = 501
+T = 500
 size_neighbourhood = 1
 
 include("FactoredFiltering.jl")
@@ -26,27 +26,27 @@ SIR(θ, δ, τ) = FactorisedMarkovChain(statespace, parents, dynamics(θ, δ, τ
 
 # Instantiation with the true dynamics
 θ = [1.2, 0.6, 0.03] # now in paper
-θ = 5.0*[1.2, 0.1, 0.03]
+θ = 5.0*[1.2, 0.1, 0.03] # i would not make lambda too large, basically makes P(infected given 1 or 2 I neighbours) = 0.999
 
-G = SIR(θ)
+G = SIR(θ, δ, τ)
 
 # forward simulate and extract observations from it
 #Nobs = 300
 #Ztrue, Strue, obsparents = create_data(Arbitrary(), G, Nobs; seednr = 15)
 
-Ztrue, Strue, obsparents = create_data(Structured(), G; seednr = 5, tinterval=1, iinterval=1)
+Ztrue, Strue, obsparents = create_data(Structured(), G; seednr = 5, tinterval=2, iinterval=2)
 
 plot(heatmap(Ztrue), heatmap(Strue))
 
 # The emissions process / matrix. Many different options
-O = [1.0 0.0; 0.0 1.0 ; 1.0 0.0] # observe infected
-O = [.9 .1; 0.1 .9 ; .9 0.1] # observe infected
+#O = [1.0 0.0; 0.0 1.0 ; 1.0 0.0] # observe infected
+#O = [.9 .1; 0.1 .9 ; .9 0.1] # observe infected
 #O = Matrix(1.0*LinearAlgebra.I, 3, 3)
 #O = [0.98 0.01 0.01; 0.01 0.98 0.01; 0.01 0.01 0.98] # observe with error
 #O = [0.95 0.05; 0.95 0.05; 0.05 0.95] # observe either {S or I} or {R} with error
 Id = Matrix(1.0*LinearAlgebra.I, 3, 3)
-δobs = 0.0001
-O = (1.0-δobs) * Id + δobs * (ones(3,3) - Id)  # observe with error
+δobs = 0.5
+O = (1.0-δobs) * Id + δobs/2 * (ones(3,3) - Id)  # observe with error
 
 
 # Map each Observation variable index to corresponding emission process
@@ -70,9 +70,9 @@ ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot, size_neighbour
 
 ################
 # Interesting to look at the h-transform, visualise this for individual `id`
-id = 40
-pB = plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L"g_t", 
-            label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600, 
+id = 41 #40
+pB = plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L"g_t",
+            label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600,
             title="guiding vectors for individual $id")
 
 # when do we observe individual id?
@@ -119,12 +119,12 @@ for ((i,t), state) in obsstates
     Yobs[max(i-1,1):i, max(t-3,1):t] .= state
 end
 
-pobs = heatmap(Yobs, xlabel="time", ylabel="individual", colorbar=false, 
-color=observationpalette, yrotation=90, dps=600, title="observed", background_color_subplot=white)
+pobs = heatmap(Yobs, xlabel="time", ylabel="individual", colorbar=false, color=observationpalette, yrotation=90, dps=600, title="observed", background_color_subplot=white)
+
 
 
 lo = @layout [a b; c d; e f g]
-pall_pobs = plot(pinit, plast, ptrue, pavg, pinit_zoomed, 
+pall_pobs = plot(pinit, plast, ptrue, pavg, pinit_zoomed,
             ptrue_zoomed, pavg_zoomed, layout=lo)#, xlabel="time", ylabel="individual")#, size=(800,1600))
 
 lo2 = @layout [a;b]
@@ -137,5 +137,3 @@ savefig(pall_pobs,  "true_and_outmcmc.png")
 savefig(ploglik,  "trace_loglik.png")
 
 plot(heatmap(Ztrue, title="Ztrue"), heatmap(out.Zinit, title="Z first iteration"), heatmap(out.Zlast, title="Z last iteration"))
-
-
