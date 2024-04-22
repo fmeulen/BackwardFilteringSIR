@@ -1,55 +1,100 @@
-function mcmc(G, ms, obs, Πroot; ITER=100, BIfactor=4, ρ=0.99, tinterval=10)
+
+function pcn(Z, ρ, ind)
+    Zᵒ = copy(Z)
+    N = size(Z)[1]
+    W = randn(Float64, (N, length(ind)))
+    Zᵒ[:,ind] = ρ*Z[:,ind] + √(1 - ρ^2)*W
+    Uᵒ = cdf.(Normal(), Zᵒ)
+    Uᵒ, Zᵒ
+end
+
+
+
+function mcmc(G, ms, obs, Πroot; ITER=100, BIfactor=4, ρ=0.99, NUMBLOCKS=10)
     BI = ITER÷BIfactor
-    # takes blocks of size tinterval
-    blocks = G.T÷tinterval
+    partitions = partition_into_blocks_close(G.T, NUMBLOCKS)
 
     𝒢 = forwardguiding(G, ms, obs, Πroot)
 
     # Initialise the first guided sample
-    Zinit = rand(Float64, (G.N, G.T))
-    Sinit, winit = 𝒢(Zinit)
-
-    # Initialise MCMC parameters
-    Z = copy(Zinit); S = copy(Sinit); w = copy(winit);
-    qZ = quantile.(Normal(), Z)
+    Z = randn(G.N, G.T)
+    U = cdf.(Normal(), Z)
+    S, w = 𝒢(U)
+    Sinit = copy(S) # to save
+    Zinit = copy(Z)
 
     Savg = zeros(G.N, G.T)
     ws = [w]
+    Ss = [S]
 
     ACCZ = 0
+    k = 0
 
-    Ss = [S]
-#    Zs = [(Z[22,11], Z[5,4])]  # just some Zs to monitor mixing
     for i = 1:ITER
-        # Z step only
-        for k = 1:blocks
-            qZ′ = copy(qZ)
-            ind = (k-1)*tinterval+1:k*tinterval
-            qW = randn(Float64, (N, length(ind)))
-            qZ′[:,ind] = ρ*qZ′[:,ind] + √(1 - ρ^2)*qW
-            Z′ = cdf.(Normal(), qZ′)
-            S′, w′ = 𝒢(Z′)
+        for ind in partitions
+            k +=1 
 
-            A = S′ == S # check if prev image S is identical to new image S′
+            Uᵒ, Zᵒ = pcn(Z, ρ, ind) 
+            Sᵒ, wᵒ = 𝒢(Uᵒ)
 
-            if log(rand()) < w′ - w
-                qZ = qZ′
-                Z = Z′
-                S, w = S′, w′
+            A = Sᵒ == S # check if prev image S is identical to new image S′
+
+            if log(rand()) < wᵒ - w
+                U .= Uᵒ
+                Z .= Zᵒ
+                S, w = Sᵒ, wᵒ
                 ACCZ += 1
             end
 
-
-            if (i % 5 == 0)
-                @printf("iteration: %d %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, k,  ACCZ/((i-1)*blocks + (k-1) + 1), w, A)
+            if (i % 50 == 0)
+                @printf("iteration: %d %d | Z rate: %.4f | logweight: %.4e | assert: %d\n", i, k,  ACCZ/k, w, A)
             end
             push!(ws, w)
         end
 
 #       push!(Zs,  (Z[22,11], Z[5,4]))
         if i > BI  Savg += S end
-        if (i % 500 == 0)    push!(Ss, S)          end
+        if (i % 100 == 0)    push!(Ss, S)          end
     end
 
     (Sinit=Sinit, Slast=S, Siterates=Ss, Savg=Savg, weights=ws, Zinit=Zinit, Zlast=Z)
+end
+
+
+
+function partition_into_blocks_close(N::Int, n::Int)
+    # Check if n is smaller than N
+    if n >= N
+        throw(ArgumentError("n must be smaller than N"))
+    end
+    
+    # Initialize partitions array
+    partitions = Array{Vector{Int}, 1}(undef, n)
+    
+    # Initialize blocks
+    for i in 1:n
+        partitions[i] = Int[]
+    end
+    
+    # Calculate the number of elements per block
+    elements_per_block = div(N, n)
+    
+    # Distribute the elements evenly
+    current_block = 1
+    current_element = 1
+    for _ in 1:n
+        while length(partitions[current_block]) < elements_per_block && current_element <= N
+            push!(partitions[current_block], current_element)
+            current_element += 1
+        end
+        current_block += 1
+    end
+    
+    # Distribute the remaining elements
+    while current_element <= N
+        push!(partitions[mod(current_element, n) == 0 ? n : mod(current_element, n)], current_element)
+        current_element += 1
+    end
+    
+    return partitions
 end

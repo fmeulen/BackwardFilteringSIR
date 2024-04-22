@@ -14,5 +14,5 @@ function resamp(lw, ess_threshold)
 end
 
 
-lw = [log(1.2), log(0.3), log(10.1), log(0.4)]
-resamp(lw, .2)
+# lw = [log(1.2), log(0.3), log(10.1), log(0.4)]
+# resamp(lw, .2)

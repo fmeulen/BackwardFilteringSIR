@@ -2,9 +2,11 @@
 
 using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distributions, LaTeXStrings, Unzip, Printf
 
+Random.seed!(110)
+
 # Problem dimensions
-N = 100
-T = 500
+N = 50
+T = 100
 size_neighbourhood = 1
 
 include("FactoredFiltering.jl")
@@ -15,8 +17,12 @@ include("mcmc.jl")
 
 
 # Define the true initial state / root
-Iinitial = 2
-root = vcat(fill(_S_, N÷3-Iinitial), fill(_I_, Iinitial÷2), fill(_S_, N-N÷3), fill(_I_, Iinitial-Iinitial÷2))
+ Iinitial = 2
+ root = vcat(fill(_S_, N÷3-Iinitial), fill(_I_, Iinitial÷2), fill(_S_, N-N÷3), fill(_I_, Iinitial-Iinitial÷2))
+
+# have one infected in the middle
+#root = vcat(fill(_S_, N÷2), [_I_], fill(_S_, N-N÷2-1))
+
 
 δ = 0.0 # artificial par to become infected without infected neighbours
 τ = 0.1 # discretisation time step of SIR model
@@ -31,10 +37,14 @@ SIR(θ, δ, τ) = FactorisedMarkovChain(statespace, parents, dynamics(θ, δ, τ
 G = SIR(θ, δ, τ)
 
 # forward simulate and extract observations from it
-#Nobs = 300
-#Ztrue, Strue, obsparents = create_data(Arbitrary(), G, Nobs; seednr = 15)
+Nobs = 30#00
+Ztrue, Strue, obsparents = create_data(Arbitrary(), G, Nobs; seednr = 15)
 
-Ztrue, Strue, obsparents = create_data(Structured(), G; seednr = 5, tinterval=2, iinterval=2)
+# observe only in the middle
+#obsparents = Dict([(N÷2 + 1, T÷2) => (N÷2 + 1, T÷2),(N÷2 + 1, T÷2 + 1) => (N÷2 + 1, T÷2 + 1)])
+#obsparents = Dict([(n, T÷2) => (n, T÷2) for n in 1:N])
+
+#Ztrue, Strue, obsparents = create_data(Structured(), G; seednr = 5, tinterval=2, iinterval=2)
 
 plot(heatmap(Ztrue), heatmap(Strue))
 
@@ -45,15 +55,22 @@ plot(heatmap(Ztrue), heatmap(Strue))
 #O = [0.98 0.01 0.01; 0.01 0.98 0.01; 0.01 0.01 0.98] # observe with error
 #O = [0.95 0.05; 0.95 0.05; 0.05 0.95] # observe either {S or I} or {R} with error
 Id = Matrix(1.0*LinearAlgebra.I, 3, 3)
-δobs = 0.5
+δobs = 0.0001
 O = (1.0-δobs) * Id + δobs/2 * (ones(3,3) - Id)  # observe with error
-
+#O = [1-δobs δobs 0.0;  0.0 1.0 0.0; δobs/2  δobs/2 1- δobs]
 
 # Map each Observation variable index to corresponding emission process
 obscpds = Dict((i,t) => O for (i,t) in keys(obsparents))
 
+# no error on middle observation
+#obscpds = Dict((i,t) => Matrix(1.0*LinearAlgebra.I, 3, 3) for (i,t) in keys(obsparents))
+
+
 # Sample the emission process assigned to each observation variable
-obsstates = Dict((i,t) => sample(weights(obscpds[(i,t)][Strue[i,t],:])) for (i,t) in keys(obsparents))
+ obsstates = Dict((i,t) => sample(weights(obscpds[(i,t)][Strue[i,t],:])) for (i,t) in keys(obsparents))
+# obsstates = Dict((i,t) => 2 for (i,t) in keys(obsparents))
+# obsstates[(26,51)] = 3
+
 obs = (obsparents, obscpds, obsstates)
 
 # Initialise inference
@@ -64,6 +81,9 @@ propagation = boyenkoller
 # Πroot2 = [1.0, 0.0, 0.0]
 # Πroot =  merge(Dict(i => Πroot1 for i in 1:N÷2), Dict(i => Πroot2 for i in N÷2:N))
 Πroot =  Dict(i => [0.98, 0.02, 0.00] for i in 1:N)
+
+Πroot[N÷2 + 1] = [0.0, 1.0, 0.0]
+
 
 # Backward filter
 ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot, size_neighbourhood)
@@ -88,7 +108,7 @@ savefig(pB, "htransform.png")
 
 ################ run mcmc ################
 
-out = mcmc(G, ms, obs, Πroot;ITER=100, ρ=0.5 )
+out = mcmc(G, ms, obs, Πroot;ITER=3_000, ρ=0.99, NUMBLOCKS=10)
 
 ################ visualisation ################
 
@@ -137,3 +157,50 @@ savefig(pall_pobs,  "true_and_outmcmc.png")
 savefig(ploglik,  "trace_loglik.png")
 
 plot(heatmap(Ztrue, title="Ztrue"), heatmap(out.Zinit, title="Z first iteration"), heatmap(out.Zlast, title="Z last iteration"))
+
+
+
+# try smc
+if false
+
+include("smc.jl")
+include("myresampling.jl")
+using SMC
+
+NR_SMC_STEPS = 250
+NUMPARTICLES = 50
+NR_MOVE_STEPS = 50
+ρ = 0.9
+
+tinterval = 50
+
+particles, lls = smc(ρ, NR_SMC_STEPS, NUMPARTICLES, NR_MOVE_STEPS, G, ms, obs,  tinterval)    
+
+
+
+
+# visualisation
+sz = (500,600)
+
+@show getindex.(particles, :w)
+@show unique(getindex.(particles, :w))    
+
+kmax = argmax(getindex.(particles, :w))
+wroundmax = round(particles[kmax].w;digits=1)
+
+kmin = argmin(getindex.(particles, :w))
+wroundmin = round(particles[kmin].w;digits=1)
+
+Savg = heatmap(mean(getindex.(particles, :S)),title="avg", size = sz, colorbar=false, yrotation=90, dps=600)
+psmc = plot( heatmap(particles[kmax].S,title = "$wroundmax", size = sz, colorbar=false, yrotation=90, dps=600),
+            heatmap(Strue, title="true", size = sz, colorbar=false, yrotation=90, dps=600),
+            heatmap(particles[kmin].S,title = "$wroundmin", size = sz, colorbar=false, yrotation=90, dps=600),
+            Savg)
+savefig(psmc, "recovery_smc.png")
+
+anim = @animate for i in 1:NUMPARTICLES
+    heatmap(particles[i].S)
+end
+gif(anim, "smc_animation.gif", fps=2)
+
+end
