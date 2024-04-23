@@ -87,11 +87,12 @@ heatmap(hcat(S, extracols), title="$w")
 
 Ss= [S]
 ws = [w]
+ids = [0]
 
-B =100
+B = 1000
 δrw = 0.2 # propose uᵒ = u + Uniform(-δrw, δrw)
-ind = 1:50  # only at times in "ind" we update the innovations
-for _ in 1:B
+ind = 1:5  # only at times in "ind" we update the innovations
+for i in 1:B
     thesame = true
     global wᵒ
     nrattempts = 0
@@ -108,20 +109,48 @@ for _ in 1:B
         w = wᵒ
         S.= Sᵒ
         @show "accepted"
+        # only save accepted
+        push!(Ss, copy(S))
+        push!(ws, w)
+        push!(ids, i)
     end
-    push!(Ss, copy(S))
-    push!(ws, w)
+    
 end
 
 sz = (700,700)
 p0 = heatmap(Strue, title="true")
-lo = @layout [a; b; c]
-anim = @animate for i in 2:B
-    p1 = heatmap(hcat(Ss[i-1], extracols), title="iteration $(i-1)")
-    p2 = heatmap(hcat(Ss[i], extracols), title="iteration $i")
-    plot(p1, p2, p0, layout=lo, size=sz)
+lo = @layout [a; c]
+anim = @animate for i in 1:length(ids)
+    #k1, k2 = ids[i-1], ids[i]
+    k2 = ids[i]
+    #p1 = heatmap(hcat(Ss[i-1], extracols), title="iteration $k1")
+    p2 = heatmap(hcat(Ss[i], extracols), title="iteration $k2")
+    plot(p2, p0, layout=lo, size=sz)
 end
 
 # top panel: heatmap at iteration i-1, middle panel: heatmpa at iteration i
-gif(anim, "test_animation.gif", fps=5)
+gif(anim, "test_animation.gif", fps=1)
 
+
+# construct observation ColorPalette
+defaultpalette = palette(cgrad(:default, categorical=true), 3)
+white = RGBA{Float64}(255, 255, 255)
+white = RGBA{Float64}(16, 59, 223, 0.12)
+white = RGBA(52, 162, 231, 0.23)
+
+observationcolors = vec(hcat(white, defaultpalette.colors.colors...))
+observationpalette = ColorPalette(typeof(defaultpalette.colors)(observationcolors, "", ""))
+
+# width of observations increased for clarity
+Yobs = zero(Strue)
+for ((i,t), state) in obsstates
+    Yobs[max(i-1,1):i, max(t-3,1):t] .= state
+end
+
+
+pobs = heatmap(Yobs, xlabel="time", ylabel="individual", colorbar=true, color=observationpalette, yrotation=90, dps=600, title="observed", background_color_subplot=white)
+
+
+lo = @layout [a; b; c]
+
+plot(heatmap(hcat(Ss[end], extracols), title="iteration $(ids[end])"), p0, pobs, layout=lo, size=sz)
