@@ -37,7 +37,7 @@ SIR(θ, δ, τ) = FactorisedMarkovChain(statespace, parents, dynamics(θ, δ, τ
 G = SIR(θ, δ, τ)
 
 # forward simulate and extract observations from it
-Nobs = 30#00
+Nobs = 50#00
 Ztrue, Strue, obsparents = create_data(Arbitrary(), G, Nobs; seednr = 15)
 
 # observe only in the middle
@@ -82,33 +82,35 @@ propagation = boyenkoller
 # Πroot =  merge(Dict(i => Πroot1 for i in 1:N÷2), Dict(i => Πroot2 for i in N÷2:N))
 Πroot =  Dict(i => [0.98, 0.02, 0.00] for i in 1:N)
 
-Πroot[N÷2 + 1] = [0.0, 1.0, 0.0]
+#Πroot[N÷2 + 1] = [0.0, 1.0, 0.0]
 
 
 # Backward filter
 ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot, size_neighbourhood)
 
 ################
-# Interesting to look at the h-transform, visualise this for individual `id`
-id = 41 #40
-pB = plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L"g_t",
-            label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600,
-            title="guiding vectors for individual $id")
+plot_htransform = false
+if plot_htransform
 
-# when do we observe individual id?
-ℴ = values(obsparents) # (individal, time) combinations of observations
-Iind = findall(first.(ℴ).==id)
-tℴ = last.(ℴ)[Iind]  # these are the times
-vline!(pB, tℴ, lwd=2, color="black", label="obs. time")
-Strue[id, tℴ]  # these are the states at observation times
+    # Interesting to look at the h-transform, visualise this for individual `id`
+    id = 41 #40
+    pB = plot(vcat([ms[t].factoredhtransform[id] for t=2:T]'...), xlabel=L"$t$", ylabel=L"g_t",
+                label=[L"\textbf{S}" L"\textbf{I}" L"\textbf{R}"], dpi=600,
+                title="guiding vectors for individual $id")
 
-
-plot(pB)
-savefig(pB, "htransform.png")
-
+    # when do we observe individual id?
+    ℴ = values(obsparents) # (individal, time) combinations of observations
+    Iind = findall(first.(ℴ).==id)
+    tℴ = last.(ℴ)[Iind]  # these are the times
+    vline!(pB, tℴ, lwd=2, color="black", label="obs. time")
+    Strue[id, tℴ]  # these are the states at observation times
+    plot(pB)
+    savefig(pB, "htransform.png")
+end
 ################ run mcmc ################
 
-out = mcmc(G, ms, obs, Πroot;ITER=3_000, ρ=0.99, NUMBLOCKS=10)
+#out = mcmc(G, ms, obs, Πroot;ITER=10_00, ρ=0.99, NUMBLOCKS=10)
+out = mcmcU(G, ms, obs, Πroot;ITER=50_00, δ=0.5, NUMBLOCKS=10)
 
 ################ visualisation ################
 
@@ -172,9 +174,10 @@ NUMPARTICLES = 50
 NR_MOVE_STEPS = 50
 ρ = 0.9
 
-tinterval = 50
+NUMBLOCKS = 10
 
-particles, lls = smc(ρ, NR_SMC_STEPS, NUMPARTICLES, NR_MOVE_STEPS, G, ms, obs,  tinterval)    
+δ  = 0.2
+particles, lls = smc(δ, NR_SMC_STEPS, NUMPARTICLES, NR_MOVE_STEPS, G, ms, obs, NUMBLOCKS)  
 
 
 

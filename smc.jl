@@ -1,45 +1,38 @@
-function move((Z, S, w, qZ), NR_MOVE_STEPS, ρ,  tinterval, G, ms, obs, Πroot)
+function move((U, S, w), NR_MOVE_STEPS, δ,  NUMBLOCKS, G, ms, obs, Πroot)
     # Update Z for each segment of 50 time steps individually
-    blocks = (T-1)÷tinterval
+    partitions = partition_into_blocks_close(G.T, NUMBLOCKS)
     N = G.N
+    𝒢 = forwardguiding(G, ms, obs, Πroot)
+    ws = [w]
 
     ACCZ = 0
     for i = 1:NR_MOVE_STEPS
-        # Z step only
-        for k = 1:blocks
-            qW = randn(Float64, (N, tinterval))
-
-            qZ′ = copy(qZ)
-            qZ′[:,(k-1)*tinterval+2:k*tinterval+1] = ρ*qZ′[:,(k-1)*tinterval+2:k*tinterval+1] + √(1 - ρ^2)*qW
-
-            Z′ = cdf.(Normal(), qZ′)
-            S′, w′ = forwardguiding(G, ms, obs, Z′,Πroot)
-            
-            if log(rand()) < w′ - w
-                qZ = qZ′
-                Z = Z′
-                S, w = S′, w′
+        for ind in partitions
+            Uᵒ = u_update(U, δ, ind)
+            Sᵒ, wᵒ = 𝒢(Uᵒ)
+            if log(rand()) < wᵒ - w
+                U .= Uᵒ
+                S, w = Sᵒ, wᵒ
                 ACCZ += 1
             end
+            push!(ws, w)
         end
-#        avgACCZ = 100.0*round(ACCZ/(blocks*ITER); digits=2)
-   #     println("acceptance percentage for move: $avgACCZ %")
-     end
-     (Z=Z, S=S, w=w, qZ=qZ)
+    end
+    
+     (U=U, S=S, w=w)
 end
 
 function inititalise_particle(G, ms, obs, Πroot)
     dims = (G.N, G.T)
-    Z = rand(Float64, dims)
-    S, w = forwardguiding(G, ms, obs, Z, Πroot)
-    qZ  = quantile.(Normal(), Z)
-    (Z=Z, S=S, w=w, qZ=qZ)
+    U = rand(Float64, dims)
+    S, w = forwardguiding(G, ms, obs, U, Πroot)
+    (U=U, S=S, w=w)
 end
 
 
 
 
-function smc(ρ, NR_SMC_STEPS, NUMPARTICLES, NR_MOVE_STEPS, G, ms, obs, tinterval)  
+function smc(δ, NR_SMC_STEPS, NUMPARTICLES, NR_MOVE_STEPS, G, ms, obs, NUMBLOCKS)  
     # initialise particles 
     particles = [inititalise_particle(G, ms, obs, Πroot) for _ in 1:NUMPARTICLES]
     
@@ -54,7 +47,7 @@ function smc(ρ, NR_SMC_STEPS, NUMPARTICLES, NR_MOVE_STEPS, G, ms, obs, tinterva
         println(indices)
         particles = [particles[k] for k in indices]
         # move step (pCN)
-        particles = map(x -> move(particles[x], NR_MOVE_STEPS, ρ,tinterval, G, ms, obs, Πroot), 1:NUMPARTICLES)
+        particles = map(x -> move(particles[x], NR_MOVE_STEPS, δ, NUMBLOCKS, G, ms, obs, Πroot), 1:NUMPARTICLES)
         push!(lls, [particles[i].w for i in eachindex(particles)])
     end
     particles, lls

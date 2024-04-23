@@ -1,6 +1,7 @@
-B = 1000
+# pcn versus cyclic uniform updates
+B = 10000
 
-u = 0.0
+u = 0.1
 z = quantile(Normal(), u)
 w = randn(B)
 ρ =0.5
@@ -8,8 +9,11 @@ zᵒ = [ρ*z + √(1-ρ^2) * w_ for w_ in w]
 uᵒ = cdf.(Normal(), zᵒ)
 histogram(zᵒ)
 histogram(uᵒ)
-
-
+#
+u = 0.91
+δ = 0.25
+uᵒ = mod.(u .+ rand(Uniform(-δ, δ), B),1)
+histogram(uᵒ)
 
 
 function partition_into_blocks(N::Int, n::Int)
