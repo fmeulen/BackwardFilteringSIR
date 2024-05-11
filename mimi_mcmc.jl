@@ -4,12 +4,13 @@
 
 using Random, StaticArrays, LinearAlgebra, StatsBase, Plots, ColorSchemes, Distributions, LaTeXStrings, Unzip, Printf
 
-Random.seed!(110)
+#Random.seed!(110)  # interesting case
+Random.seed!(10)
 
 # Problem dimensions
 N = 50
 T = 100
-size_neighbourhood = 1
+size_neighbourhood = 2
 
 include("FactoredFiltering.jl")
 include("create_data.jl")
@@ -39,7 +40,7 @@ SIR(θ, δ, τ) = FactorisedMarkovChain(statespace, parents, dynamics(θ, δ, τ
 G = SIR(θ, δ, τ)
 
 # forward simulate and extract observations from it
-Nobs = 50#00
+Nobs = 30# 50#00
 Ztrue, Strue, obsparents = create_data(Arbitrary(), G, Nobs; seednr = 15)
 
 # observe only in the middle
@@ -79,6 +80,9 @@ propagation = boyenkoller
 ms, logh =  backwardfiltering(G, propagation, false, obs, Πroot, size_neighbourhood)
 𝒢 = forwardguiding(G, ms, obs, Πroot)
 
+
+partitions = partition_into_blocks_close(G.N, 10)
+
 # initialisation mcmc
 U = rand(G.N, G.T)
 S, w = 𝒢(U)
@@ -91,30 +95,25 @@ ids = [0]
 
 B = 1000
 δrw = 0.2 # propose uᵒ = u + Uniform(-δrw, δrw)
-ind = 1:5  # only at times in "ind" we update the innovations
-for i in 1:B
-    thesame = true
-    global wᵒ
-    nrattempts = 0
-    while thesame  # sample new innovations until the picture changes
+#ind = 1:5  # only at times in "ind" we update the innovations
+for ind in partitions[1]
+    for i in 1:B
+        global wᵒ
         Uᵒ = u_update(U, δrw, ind)
         Sᵒ, wᵒ = 𝒢(Uᵒ)
-        thesame = (Sᵒ == S) 
-    end
-    nrattempts += 1
-    @show nrattempts
 
-    if log(rand()) < wᵒ - w
-        U.= Uᵒ
-        w = wᵒ
-        S.= Sᵒ
-        @show "accepted"
-        # only save accepted
-        push!(Ss, copy(S))
-        push!(ws, w)
-        push!(ids, i)
+        if log(rand()) < wᵒ - w && (Sᵒ !== S)
+            U.= Uᵒ
+            w = wᵒ
+            S.= Sᵒ
+            @show "accepted"
+            # only save accepted
+            push!(Ss, copy(S))
+            push!(ws, w)
+            push!(ids, i)
+        end
+    mod(i,10)==0 && print(i)  
     end
-    
 end
 
 sz = (700,700)
